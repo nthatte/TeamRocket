@@ -12,9 +12,9 @@ function u = student_controller(t, x, consts, ctrl)
     
     %u = ctrl.func(x);
     index = floor(t/0.01)+1;
-    if index < size(ctrl.xtraj,1)
-        u = ctrl.func(x - ctrl.xtraj(index,:)') + ctrl.utraj(index,:)';
+    if index < ctrl.num_pts
+        u = -ctrl.K_t{index}*(x - ctrl.xtraj(index,:)') + ctrl.utraj(index,:)';
     else
-        u = ctrl.func(x - ctrl.xtraj(end,:)')   + ctrl.utraj(end,:)';
+        u = -ctrl.K_t{end}*(x - ctrl.xtraj(end,:)') + ctrl.utraj(end,:)';
     end
 end

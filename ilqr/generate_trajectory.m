@@ -4,8 +4,7 @@ function [time, x_t, u_t] = generate_trajectory(x0, xf, traj_time_scale, dt, con
 
     g = 9.81;
     height = x0(2);
-    T = sqrt(2*height/g)*traj_time_scale;
-
+    T = sqrt(2*height/g)*traj_time_scale
 
     A = [1, 0,   0,     0,      0,      0;
          1, T, T^2,   T^3,    T^4,    T^5;

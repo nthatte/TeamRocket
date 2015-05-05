@@ -25,11 +25,26 @@ function ctrl = student_setup(x0, consts)
 
     dx = fx + gx*u;
     
+    % normal lqr
     xeq = zeros(length(x0),1);
     xeq(2) = 10;
     xeq(end) = x0(end);
     ueq = [xeq(end)*consts.g/consts.gamma; 0];
 
+    [time, xtraj, utraj] = generate_trajectory(x0, xeq, 10, 0.1, consts);
+    ctrl.num_pts = length(time);
+    ctrl.xtraj = xtraj;
+    ctrl.utraj = utraj;
+
+    Q = diag([1, 1, 1, 0, 1, 10, 1, 0, 0]);
+    R = eye(length(u));
+
+    ctrl.num_pts = length(time);
+    ctrl.func = cell(ctrl.num_pts, 1);
+    ctrl.K_t = cell(ctrl.num_pts, 1);
+
+    %lqr linearized about eq following trajectory
+    %{
     A = jacobian(dx,x);
     B = jacobian(dx,u);
     A = subs(A,x,xeq);
@@ -37,28 +52,26 @@ function ctrl = student_setup(x0, consts)
     A = double(subs(A,u,ueq));
     B = double(subs(B,u,ueq));
 
-    Q = diag([1, 1, 1, 1, 1, 10, 1, 1, 0]);
-    R = eye(length(u));
-    [K, P] = lqr(A, B, Q, R);
-    ctrl.K = K;
-    %{
-    lqr_ctrl = matlabFunction(-K*(x - xeq) + ueq, 'vars', x);
-    ctrl.func = @(s) lqr_ctrl(s(1),s(2),s(3),s(4),s(5),s(6),s(7),s(8),s(9));
+
+    K = lqr(A, B, Q, R);
+    for i = 1:ctrl.num_pts
+        ctrl.K_t{i} = K;
+    end
     %}
 
-    [time, xtraj, utraj] = generate_trajectory(x0, xeq, 10, 0.01, consts);
-    ctrl.xtraj = xtraj;
-    ctrl.utraj = utraj;
-    lqr_ctrl = matlabFunction(-K*x, 'vars', x);
-    ctrl.func = @(s) lqr_ctrl(s(1),s(2),s(3),s(4),s(5),s(6),s(7),s(8),s(9));
+    %lqr linearized about trajectory
+    A_x = matlabFunction(jacobian(dx,x), 'vars', [x; u]);
+    A_x = @(s) A_x(s(1),s(2),s(3),s(4),s(5),s(6),s(7),s(8),s(9), s(10), s(11));
+    B_x = matlabFunction(jacobian(dx,u), 'vars', [x; u]);
+    B_x = @(s) B_x(s(1),s(2),s(3),s(4),s(5),s(6),s(7),s(8),s(9), s(10), s(11));
 
-    %{
-    V = (x - xeq).'*P*(x - xeq);
-    LfV = jacobian(V,x)*fx;
-    LgV = jacobian(V,x)*gx;
-    sontag = -(LfV + sqrt(LfV^2 + (LgV*LgV.')^2))*LgV/(LgV*LgV.').*(LgV ~= 0);
-    sontag_func = matlabFunction(sontag,'vars',x);
-    ctrl.func = @(s) sontag_func(s(1),s(2),s(3),s(4),s(5),s(6),s(7),s(8),s(9))';
-    ctrl.xeq = xeq;
-    %}
+    ctrl.num_pts
+    for i = 1:ctrl.num_pts
+        A = A_x([xtraj(i,:)'; utraj(i,:)']);
+        B = B_x([xtraj(i,:)'; utraj(i,:)']);
+        ctrl.K_t{i} = lqr(A, B, Q, R);
+        if mod(i,100) == 0
+            i
+        end
+    end
 end
