@@ -16,11 +16,11 @@ xeq(end) = x0(end);
 
 
 % New ICs
-x_offset = [10;              % y
-            100;             % z
-            40*pi/180;       % theta
+x_offset = [20;              % y
+            150;             % z
+            70*pi/180;       % theta
             00*pi/180;      % phi
-            0;            % dy
+            1;            % dy
             0;           % dz
             00*pi/180;       % dtheta
             0*pi/180;       % dphi

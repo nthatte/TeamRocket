@@ -40,7 +40,7 @@ function sim_rocket(x0)
         u(j,:) = uu' ;
     end
     animate_rocket(t, x, u) ;
-    figure ; plot(t, u(:,1)) ; grid on ; xlabel('Time (s)') ; ylabel('u') ;
+    figure ; plot(t, u) ; grid on ; xlabel('Time (s)') ; ylabel('u') ;
 end
 
 
