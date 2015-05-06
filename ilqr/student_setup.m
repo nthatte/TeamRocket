@@ -52,10 +52,9 @@ function ctrl = student_setup(x0, consts)
     B_x = matlabFunction(jacobian(dx,u), 'vars', [x; u]);
     B_x = @(s) B_x(s(1),s(2),s(3),s(4),s(5),s(6),s(7),s(8),s(9), s(10), s(11));
 
-
-    traj_error_thresh = 5;
+    traj_error_thresh = .1;
     num_iter = 25;
-    magic_factor = 0.9;
+    magic_factor = 0.5;
     odeopts = odeset;
     for j = 1:num_iter
         for i = 1:ctrl.num_pts
@@ -67,19 +66,17 @@ function ctrl = student_setup(x0, consts)
             end
             alpha_x = @(s) -ctrl.K_t{i}*(s - ctrl.xtraj(i,:)') + ctrl.utraj(i,:)';
             ustep = alpha_x(new_xtraj(i,:)');
-            new_utraj(i,:) = ctrl.utraj(i,:) + magic_factor*(ustep' - ctrl.utraj(i,:));
+            new_utraj(i,:) = ustep'; %ctrl.utraj(i,:) + magic_factor*(ustep' - ctrl.utraj(i,:));
+            %new_utraj(i,:) = ctrl.utraj(i,:) + magic_factor*(ustep' - ctrl.utraj(i,:));
             if i ~= ctrl.num_pts
                 [~, xstep] = ode45(@odefun_rocket, [0 dt], new_xtraj(i,:), odeopts, consts, alpha_x) ;
-                %{
-                disp('xstep')
-                disp(xstep(end,:))
-                disp('xtraj')
-                disp(ctrl.xtraj(i+1,:))
-                %}
-                new_xtraj(i+1,:) = ctrl.xtraj(i+1,:) + magic_factor*(xstep(end,:) - ctrl.xtraj(i+1,:));
+                %new_xtraj(i+1,:) = ctrl.xtraj(i+1,:) + magic_factor*(xstep(end,:) - ctrl.xtraj(i+1,:));
+                new_xtraj(i+1,:) = xstep(end,:);
             end
         end
 
+        new_utraj = ctrl.utraj + magic_factor*(new_utraj - ctrl.utraj);
+        new_xtraj = ctrl.xtraj + magic_factor*(new_xtraj - ctrl.xtraj);
         figure(100)
         subplot(211)
         plot(time, ctrl.xtraj, '-', time, new_xtraj, '--')
