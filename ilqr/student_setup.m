@@ -9,6 +9,7 @@ function ctrl = student_setup(x0, consts)
     % Ex: ctrl.K = lqr(A, B, Q, R) ;
     syms x y z theta phi dy dz dtheta dphi m ft tau
     
+    %derive dynamics
     M = diag([m, m, consts.J, consts.JT, 1]);
     x = [y; z; theta; phi; dy; dz; dtheta; dphi; m];
     fx = [dy; dz; dtheta; dphi; inv(M)*[0; -m*consts.g; 0; 0; 0]];
@@ -22,19 +23,24 @@ function ctrl = student_setup(x0, consts)
                    0, 1;
                   -1, 0]];
     u = [ft; tau];
+    num_states = length(x);
+    num_inputs = length(u);
 
     dx = fx + gx*u;
     
-    ctrl.xeq = zeros(length(x0),1);
+    %define equilibrium point and trajectroy from initial condition to eq
+    ctrl.xeq = zeros(num_states,1);
     ctrl.xeq(2) = 10;
     ctrl.xeq(end) = x0(end);
-    ueq = [ctrl.xeq(end)*consts.g/consts.gamma; 0];
 
     dt = 0.1;
     [time, xtraj, utraj] = generate_trajectory(x0, ctrl.xeq, 5, dt, consts);
     ctrl.num_pts = length(time);
+    ctrl.xtraj_des = xtraj;
+    ctrl.utraj_des = utraj;
     ctrl.xtraj = xtraj;
     ctrl.utraj = utraj;
+
     new_xtraj = inf(size(xtraj));
     new_utraj = inf(size(utraj));
     new_xtraj(1,:) = xtraj(1,:);
@@ -45,43 +51,63 @@ function ctrl = student_setup(x0, consts)
     ctrl.K_t  = cell(ctrl.num_pts, 1);
 
     %lqr linearized about trajectory
-    Q = diag([1, 1, 1, 0, 1, 10, 1, 0, 0]);
-    R = eye(length(u));
-    A_x = matlabFunction(jacobian(dx,x), 'vars', [x; u]);
-    A_x = @(s) A_x(s(1),s(2),s(3),s(4),s(5),s(6),s(7),s(8),s(9), s(10), s(11));
-    B_x = matlabFunction(jacobian(dx,u), 'vars', [x; u]);
-    B_x = @(s) B_x(s(1),s(2),s(3),s(4),s(5),s(6),s(7),s(8),s(9), s(10), s(11));
+    A_cont = matlabFunction(jacobian(dx,x), 'vars', [x; u]);
+    A_cont = @(s) A_cont(s(1),s(2),s(3),s(4),s(5),s(6),s(7),s(8),s(9), s(10), s(11));
+    B_cont = matlabFunction(jacobian(dx,u), 'vars', [x; u]);
+    B_cont = @(s) B_cont(s(1),s(2),s(3),s(4),s(5),s(6),s(7),s(8),s(9), s(10), s(11));
 
     traj_error_thresh = .1;
-    num_iter = 25;
+    num_iter = 100;
     magic_factor = 0.5;
     odeopts = odeset;
     for j = 1:num_iter
+        j
+        %backwards pass
+        Q = diag([1, 1, 1, 0, 1, 10, 1, 0, 0]);
+        q = ctrl.xtraj_des(i,:)*Q;
+        Q = [Q, -q'; -q, 100];
+        R = eye(length(u));
+
         for i = 1:ctrl.num_pts
-            A = A_x([xtraj(i,:)'; utraj(i,:)']);
-            B = B_x([xtraj(i,:)'; utraj(i,:)']);
-            ctrl.K_t{i} = lqr(A, B, Q, R);
+            A_discrete = eye(num_states) + A_cont([ctrl.xtraj(i,:)'; ctrl.utraj(i,:)'])*dt;
+            B_discrete = B_cont([ctrl.xtraj(i,:)'; ctrl.utraj(i,:)'])*dt;
+            A = [A_discrete, (eye(num_states) - A_discrete)*ctrl.xtraj(i,:)' ...
+                    + B_discrete*(ctrl.utraj_des(i,:)' - ctrl.utraj(i,:)');
+                 zeros(1, num_states), 1];
+            B = [B_discrete; zeros(1, num_inputs)];
+
+            ctrl.K_t{i} = dlqr(A, B, Q, R);
             if mod(i,100) == 0
                 i
             end
-            alpha_x = @(s) -ctrl.K_t{i}*(s - ctrl.xtraj(i,:)') + ctrl.utraj(i,:)';
-            ustep = alpha_x(new_xtraj(i,:)');
-            new_utraj(i,:) = ustep'; %ctrl.utraj(i,:) + magic_factor*(ustep' - ctrl.utraj(i,:));
+        end
+
+        %forward rollout
+        for i = 1:ctrl.num_pts
+            ustep = -ctrl.K_t{i}*[new_xtraj(i,:)'; 1] + ctrl.utraj_des(i,:)';
+            new_utraj(i,:) = ustep';
             %new_utraj(i,:) = ctrl.utraj(i,:) + magic_factor*(ustep' - ctrl.utraj(i,:));
             if i ~= ctrl.num_pts
-                [~, xstep] = ode45(@odefun_rocket, [0 dt], new_xtraj(i,:), odeopts, consts, alpha_x) ;
+                [~, xstep] = ode45(@odefun_rocket, [0 dt], new_xtraj(i,:), odeopts, consts, ctrl, i);
                 %new_xtraj(i+1,:) = ctrl.xtraj(i+1,:) + magic_factor*(xstep(end,:) - ctrl.xtraj(i+1,:));
                 new_xtraj(i+1,:) = xstep(end,:);
             end
         end
-
+        
+        % apply magic factor
         new_utraj = ctrl.utraj + magic_factor*(new_utraj - ctrl.utraj);
         new_xtraj = ctrl.xtraj + magic_factor*(new_xtraj - ctrl.xtraj);
+
+        %plot old, new, and desired trajectories
         figure(100)
         subplot(211)
-        plot(time, ctrl.xtraj, '-', time, new_xtraj, '--')
+        plot(time, ctrl.xtraj, time, new_xtraj, time, ctrl.xtraj_des)
+        legend('old','new','desired')
         subplot(212)
-        plot(time, ctrl.utraj, '-', time, new_utraj, '--')
+        plot(time, ctrl.utraj, time, new_utraj, time, ctrl.utraj_des)
+        legend('old','new','desired')
+
+        %check for convergence else perform another iteration
         norm(ctrl.xtraj - new_xtraj)
         if norm(ctrl.xtraj - new_xtraj) < traj_error_thresh
             break;
@@ -89,11 +115,10 @@ function ctrl = student_setup(x0, consts)
             
         ctrl.xtraj = new_xtraj;
         ctrl.utraj = new_utraj;
-
     end
 end
 
-function [dx u] = odefun_rocket(t, x, consts, alpha_x)
+function [dx u] = odefun_rocket(t, x, consts, ctrl, i)
     y = x(1) ;
     z = x(2) ;
     th = x(3) ; 
@@ -127,7 +152,7 @@ function [dx u] = odefun_rocket(t, x, consts, alpha_x)
             -1,    0] ;
     
     % call student controller
-    u = alpha_x(x);
+    u = -ctrl.K_t{i}*[x; 1] + ctrl.utraj_des(i,:)';
 
     % Check if fuel is over
     if(m <= consts.m_nofuel)
