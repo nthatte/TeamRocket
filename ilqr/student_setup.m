@@ -27,14 +27,19 @@ function ctrl = student_setup(x0, consts)
     num_inputs = length(u);
 
     dx = fx + gx*u;
-    
+
+    %discrete time dynamics model
+    dt = 0.01;
+    fxu_discrete = x + dt*dx;
+    fxu_discrete = matlabFunction(fxu_discrete, 'vars', [x; u]);
+    fxu_discrete = @(s) fxu_discrete(s(1),s(2),s(3),s(4),s(5),s(6),s(7),s(8),s(9), s(10), s(11));
+
     %define equilibrium point and trajectroy from initial condition to eq
     ctrl.xeq = zeros(num_states,1);
     ctrl.xeq(2) = 9;
     ctrl.xeq(end) = x0(end);
     ctrl.ueq = [x0(end)*consts.g/consts.gamma, 0]';
 
-    dt = 0.01;
     [time, xtraj, utraj] = generate_trajectory(x0, ctrl.xeq, 5, dt, consts);
     ctrl.num_pts = length(time);
     ctrl.xtraj_des = xtraj;
@@ -64,14 +69,14 @@ function ctrl = student_setup(x0, consts)
     R = eye(num_inputs);
     ctrl.K_end = lqr(A, B, Q, R);
 
-    traj_error_thresh = .01;
+    traj_error_thresh = .001;
     num_iter = 10;
-    magic_factor_mult = .1/num_iter;
+    magic_factor_mult = 0.1/num_iter;
     %magic_factor_mult = 0.1;
     odeopts = odeset;
     for j = 1:num_iter
         j
-        magic_factor = magic_factor_mult;
+        magic_factor = magic_factor_mult*j
         %backwards pass
         for i = ctrl.num_pts:-1:1
             Q = diag([1, 1, 10, 1, 1, 10, 10, 1, 0])/dt;
@@ -104,6 +109,23 @@ function ctrl = student_setup(x0, consts)
         end
 
         %forward rollout
+        for i = 1:ctrl.num_pts-1
+            new_utraj(i,:) = (ctrl.K_t{i}*[new_xtraj(i,:)'; 1] ...
+                + ctrl.utraj_des(i,:)')';
+            new_utraj(i,:) = ctrl.utraj_des(i,:) ...
+                + magic_factor*(new_utraj(i,:) - ctrl.utraj_des(i,:));
+
+            new_xtraj(i+1,:) = fxu_discrete([new_xtraj(i,:)';
+                new_utraj(i,:)']);
+            new_xtraj(i+1,:) = ctrl.xtraj_des(i+1,:) ...
+                + magic_factor*(new_xtraj(i+1,:) - ctrl.xtraj_des(i+1,:));
+        end
+        new_utraj(end,:) = (ctrl.K_t{end}*[new_xtraj(end,:)'; 1] ...
+            + ctrl.utraj_des(end,:)')';
+        new_utraj(end,:) = ctrl.utraj_des(end,:) ...
+            + magic_factor*(new_utraj(end,:) - ctrl.utraj_des(end,:));
+
+        %{
         [~, new_xtraj] = ode45(@odefun_rocket, time, new_xtraj(1,:)', odeopts, consts, ctrl);
         for i = 1:ctrl.num_pts
             new_utraj(i,:) = (ctrl.K_t{i}*[new_xtraj(i,:)'; 1] + ctrl.utraj_des(i,:)')';
@@ -112,6 +134,7 @@ function ctrl = student_setup(x0, consts)
         % apply magic factor
         new_utraj = ctrl.utraj_des + magic_factor*(new_utraj - ctrl.utraj_des);
         new_xtraj = ctrl.xtraj_des + magic_factor*(new_xtraj - ctrl.xtraj_des);
+        %}
 
         %plot old, new, and desired trajectories
         figure(100)
