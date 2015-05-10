@@ -11,11 +11,11 @@ function u = student_controller(t, x, consts, ctrl)
     % Ex: u = -ctrl.K*x ;
     
     %u = ctrl.func(x);
-    index = floor(t/0.1)+1;
-    if index < ctrl.num_pts
-        u = -ctrl.K_t{index}*[x; 1] + ctrl.utraj_des(index,:)';
+    index = floor(t/0.01)+1;
+    if index <= ctrl.num_pts
+        u = ctrl.K_t{index}*[x; 1] + ctrl.utraj_des(index,:)';
     else
-        u = -ctrl.K_t{end}*[x; 1] + ctrl.utraj_des(end,:)';
+        u = -ctrl.K_end*(x-ctrl.xeq) + ctrl.ueq;
     end
 end
 
