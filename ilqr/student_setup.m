@@ -30,7 +30,7 @@ function ctrl = student_setup(x0, consts)
     
     %define equilibrium point and trajectroy from initial condition to eq
     ctrl.xeq = zeros(num_states,1);
-    ctrl.xeq(2) = 10;
+    ctrl.xeq(2) = 9;
     ctrl.xeq(end) = x0(end);
     ctrl.ueq = [x0(end)*consts.g/consts.gamma, 0]';
 
@@ -60,23 +60,24 @@ function ctrl = student_setup(x0, consts)
     %compute infinite time horizon control to use after last timestep
     A = A_cont([ctrl.xeq; ctrl.ueq]);
     B = B_cont([ctrl.xeq; ctrl.ueq]);
-    Q = diag([1, 1, 1, 0, 1, 10, 1, 0, 0]);
+    Q = diag([1, 1, 10, 1, 1, 10, 1, 1, 0]);
     R = eye(num_inputs);
     ctrl.K_end = lqr(A, B, Q, R);
 
-    traj_error_thresh = .1;
-    num_iter = 5;
-    magic_factor = 0.1;
+    traj_error_thresh = .01;
+    num_iter = 10;
+    magic_factor_mult = .1/num_iter;
+    %magic_factor_mult = 0.1;
     odeopts = odeset;
     for j = 1:num_iter
         j
-
+        magic_factor = magic_factor_mult;
         %backwards pass
         for i = ctrl.num_pts:-1:1
-            Q = diag([1, 1, 1, 0, 1, 10, 1, 0, 0]);
+            Q = diag([1, 1, 10, 1, 1, 10, 10, 1, 0])/dt;
             q = ctrl.xtraj_des(i,:)*Q;
-            Q = [Q, -q'; -q, 100];
-            R = eye(num_inputs);
+            Q = [Q, -q'; -q, 1];
+            R = eye(num_inputs)/dt;
 
             A_discrete = eye(num_states) + A_cont([ctrl.xtraj(i,:)'; ctrl.utraj(i,:)'])*dt;
             B_discrete = B_cont([ctrl.xtraj(i,:)'; ctrl.utraj(i,:)'])*dt;
@@ -87,43 +88,30 @@ function ctrl = student_setup(x0, consts)
 
             if i == ctrl.num_pts
                 Ps = Q;
-                K = B'*Ps*A;
+                K = zeros(num_inputs, num_states+1);
             else
-                K =  -(R + B'*Ps*B)\(B'*Ps*A);
+                K = (R + B'*Ps*B)\(B'*Ps*A);
             end
-            tmp = A+B*K;
+            tmp = A-B*K;
             Ps = Q + K'*R*K + tmp'*Ps*tmp;
             ctrl.K_t{i} = K;
 
+            %{
             if mod(i,100) == 0
                 i
             end
+            %}
         end
 
         %forward rollout
-        %{
-        for i = 1:ctrl.num_pts
-            ustep = -ctrl.K_t{i}*[new_xtraj(i,:)'; 1] + ctrl.utraj_des(i,:)';
-            new_utraj(i,:) = ustep';
-            %new_utraj(i,:) = ctrl.utraj(i,:) + magic_factor*(ustep' - ctrl.utraj(i,:));
-            if i ~= ctrl.num_pts
-                [~, xstep] = ode45(@odefun_rocket, [0 dt], new_xtraj(i,:), odeopts, consts, ctrl, i);
-                %new_xtraj(i+1,:) = ctrl.xtraj(i+1,:) + magic_factor*(xstep(end,:) - ctrl.xtraj(i+1,:));
-                new_xtraj(i+1,:) = xstep(end,:);
-            end
-            if mod(i,100) == 0
-                i
-            end
-        end
-        %}
         [~, new_xtraj] = ode45(@odefun_rocket, time, new_xtraj(1,:)', odeopts, consts, ctrl);
         for i = 1:ctrl.num_pts
             new_utraj(i,:) = (ctrl.K_t{i}*[new_xtraj(i,:)'; 1] + ctrl.utraj_des(i,:)')';
         end
         
         % apply magic factor
-        new_utraj = ctrl.utraj + magic_factor*(new_utraj - ctrl.utraj);
-        new_xtraj = ctrl.xtraj + magic_factor*(new_xtraj - ctrl.xtraj);
+        new_utraj = ctrl.utraj_des + magic_factor*(new_utraj - ctrl.utraj_des);
+        new_xtraj = ctrl.xtraj_des + magic_factor*(new_xtraj - ctrl.xtraj_des);
 
         %plot old, new, and desired trajectories
         figure(100)
@@ -187,7 +175,9 @@ function [dx u] = odefun_rocket(t, x, consts, ctrl)
             -1,    0] ;
     
     % call student controller
-    u = student_controller(t, x, consts, ctrl) ;
+    index = floor(t/0.01)+1;
+    u = -ctrl.K_t{index}*[x; 1] + ctrl.utraj_des(index,:)';
+    %u = student_controller(t, x, consts, ctrl) ;
 
     % Check if fuel is over
     if(m <= consts.m_nofuel)

@@ -18,10 +18,10 @@ xeq(end) = x0(end);
 % New ICs
 x_offset = [10;              % y
             150;             % z
-            30*pi/180;       % theta
+            60*pi/180;       % theta
             00*pi/180;      % phi
-            0;            % dy
-            0;           % dz
+            1;            % dy
+            10;           % dz
             00*pi/180;       % dtheta
             0*pi/180;       % dphi
             0];             % m
@@ -41,7 +41,3 @@ sim_rocket(xeq + x_offset)
 
 % Post-processing
 tilefigs;
-
-
-
-

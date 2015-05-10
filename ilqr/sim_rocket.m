@@ -41,6 +41,8 @@ function sim_rocket(x0)
     end
     animate_rocket(t, x, u) ;
     figure ; plot(t, u) ; grid on ; xlabel('Time (s)') ; ylabel('u') ;
+    
+    keyboard
 end
 
 

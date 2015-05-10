@@ -46,3 +46,4 @@ function [time, x_t, u_t] = generate_trajectory(x0, xf, traj_time_scale, dt, con
     x_t(:,end) = x0(end)*ones(length(time), 1);
 
     u_t = repmat(ueq,length(time),1);
+    %u_t = zeros(length(time),2);
