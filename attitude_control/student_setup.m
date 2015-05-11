@@ -54,11 +54,6 @@ function ctrl = student_setup(x0, consts)
 
     dx = fx + gx*u;
 
-    %discrete time dynamics model
-%     fxu_discrete = x + dt*dx;
-%     fxu_discrete = matlabFunction(fxu_discrete, 'vars', [x; u]);
-%     fxu_discrete = @(s) fxu_discrete(s(1),s(2),s(3),s(4),s(5),s(6),s(7),s(8),s(9), s(10), s(11));
-
     %define equilibrium point and trajectroy from initial condition to eq
     ctrl.xeq = zeros(num_states,1);
     ctrl.xeq(2) = 10;
@@ -67,26 +62,15 @@ function ctrl = student_setup(x0, consts)
 
     T = 5;
     [time, xtraj, utraj] = generate_trajectory(start_point, ctrl.xeq, T, dt, consts);
-    while max(time)>=(60-ctrl.conv_t)
+    while max(time)>=(55-ctrl.conv_t)
         T = T/2;
         [time, xtraj, utraj] = generate_trajectory(start_point, ctrl.xeq, T, dt, consts);
     end
-    while max(time)<40
+    while max(time)<30
         T  = T*1.5;
         [time, xtraj, utraj] = generate_trajectory(start_point, ctrl.xeq, T, dt, consts);
     end
 
-    if any(xtraj(:,2) < 0)
-        midpoint = (start_point + ctrl.xeq)/2;
-        midpoint(5:8) = 0;
-        [time1, xtraj1, utraj1] = generate_trajectory(start_point, midpoint, T/2, dt, consts);
-        [time2, xtraj2, utraj2] = generate_trajectory(midpoint, ctrl.xeq, T/2, dt, consts);
-        time = [time1'; time2(2:end)'+time1(end)'];
-        xtraj = [xtraj1; xtraj2(2:end,:)];
-        utraj = [utraj1; utraj2(2:end,:)];
-    end
-   
-        
     ctrl.time = time+ctrl.conv_t;
     ctrl.xtraj = xtraj;
     ctrl.utraj = utraj;
@@ -97,10 +81,10 @@ function ctrl = student_setup(x0, consts)
     B_cont = matlabFunction(jacobian(dx,u), 'vars', [x; u]);
     B_cont = @(s) B_cont(s(1),s(2),s(3),s(4),s(5),s(6),s(7),s(8),s(9), s(10), s(11));
 
-    %compute infinite time horizon control to use after last timestep
+    %compute infinite time horizon control 
     A = A_cont([ctrl.xeq; ctrl.ueq]);
     B = B_cont([ctrl.xeq; ctrl.ueq]);
-    Q = diag([1, 10, 10, 1, 10, 10, 1, 1, 0]);
+    Q = diag([10, 10, 1, 1, 10, 10, 1, 1, 0]);
     R = eye(num_inputs);
 
     ctrl.K = lqr(A, B, Q, R);
