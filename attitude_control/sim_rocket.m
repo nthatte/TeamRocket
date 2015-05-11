@@ -37,7 +37,7 @@ function sim_rocket(x0)
     % Animation
     u = zeros(length(t), 2) ;
     for j=1:length(t)
-        [dx uu] = odefun_rocket(t, x(j,:)', consts, ctrl) ;
+        [dx uu] = odefun_rocket(t(j), x(j,:)', consts, ctrl) ;
         u(j,:) = uu' ;
     end
     animate_rocket(t, x, u) ;

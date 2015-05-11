@@ -27,9 +27,8 @@ function [time, x_t, u_t] = generate_trajectory(x0, xf, traj_time_scale, dt, con
                   zeros(1,n)];
 
     coeff_x = A\end_points;
-    coeff_dx = [coeff_x(2), 2*coeff_x(3), 3*coeff_x(4), ...
-        4*coeff_x(5), 5*coeff_x(6)];
-
+    coeff_dx = [coeff_x(2,:); 2*coeff_x(3,:); 3*coeff_x(4,:); ...
+        4*coeff_x(5,:); 5*coeff_x(6,:)];
 
     time = 0:dt:T;
     x_t = zeros(length(time), 2*n+1);
@@ -47,4 +46,3 @@ function [time, x_t, u_t] = generate_trajectory(x0, xf, traj_time_scale, dt, con
 
     u_t = repmat(ueq,length(time),1);
     %u_t = zeros(length(time),2);
-    x_t(:,5:8) = 0;
