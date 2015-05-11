@@ -36,7 +36,7 @@ function ctrl = student_setup(x0, consts)
 
     %define equilibrium point and trajectroy from initial condition to eq
     ctrl.xeq = zeros(num_states,1);
-    ctrl.xeq(2) = 9;
+    ctrl.xeq(2) = 5;
     ctrl.xeq(end) = x0(end);
     ctrl.ueq = [x0(end)*consts.g/consts.gamma, 0]';
 
@@ -62,26 +62,20 @@ function ctrl = student_setup(x0, consts)
     B_cont = matlabFunction(jacobian(dx,u), 'vars', [x; u]);
     B_cont = @(s) B_cont(s(1),s(2),s(3),s(4),s(5),s(6),s(7),s(8),s(9), s(10), s(11));
 
-    %compute infinite time horizon control to use after last timestep
-    A = A_cont([ctrl.xeq; ctrl.ueq]);
-    B = B_cont([ctrl.xeq; ctrl.ueq]);
-    Q = diag([1, 1, 10, 1, 1, 10, 1, 1, 0]);
-    R = eye(num_inputs);
-    ctrl.K_end = lqr(A, B, Q, R);
 
     traj_error_thresh = .001;
     num_iter = 10;
-    magic_factor_mult = 0.1/num_iter;
-    %magic_factor_mult = 0.1;
+    %magic_factor_mult = 0.1/num_iter;
+    magic_factor_mult = 0.1;
     odeopts = odeset;
     for j = 1:num_iter
         j
-        magic_factor = magic_factor_mult*j
+        magic_factor = magic_factor_mult
         %backwards pass
         for i = ctrl.num_pts:-1:1
-            Q = diag([1, 1, 10, 1, 1, 10, 10, 1, 0])/dt;
+            Q = diag([1, 1, 1, 1, 1, 10, 1, 1, 0])/dt;
             q = ctrl.xtraj_des(i,:)*Q;
-            Q = [Q, -q'; -q, 1];
+            Q = [Q, -q'; -q, 100];
             R = eye(num_inputs)/dt;
 
             A_discrete = eye(num_states) + A_cont([ctrl.xtraj(i,:)'; ctrl.utraj(i,:)'])*dt;
@@ -101,35 +95,49 @@ function ctrl = student_setup(x0, consts)
             Ps = Q + K'*R*K + tmp'*Ps*tmp;
             ctrl.K_t{i} = K;
 
-            %{
             if mod(i,100) == 0
                 i
             end
-            %}
         end
 
         %forward rollout
+        T = 10;
         for i = 1:ctrl.num_pts-1
-            new_utraj(i,:) = (ctrl.K_t{i}*[new_xtraj(i,:)'; 1] ...
-                + ctrl.utraj_des(i,:)')';
-            new_utraj(i,:) = ctrl.utraj_des(i,:) ...
-                + magic_factor*(new_utraj(i,:) - ctrl.utraj_des(i,:));
+            % using koushils dynamics with saturations
+            t = time(i);
+            new_utraj(i,:) = (-ctrl.K_t{i}*[new_xtraj(i,:)'; 1] + ctrl.utraj_des(i,:)')';
+            dxdt = odefun_rocket(t, new_xtraj(i,:)', consts, ctrl);
+            new_xtraj(i+1,:) = new_xtraj(i,:) + dt*dxdt';
 
-            new_xtraj(i+1,:) = fxu_discrete([new_xtraj(i,:)';
-                new_utraj(i,:)']);
             new_xtraj(i+1,:) = ctrl.xtraj_des(i+1,:) ...
-                + magic_factor*(new_xtraj(i+1,:) - ctrl.xtraj_des(i+1,:));
+                + magic_factor*(new_xtraj(i+1,:) ...
+                - ctrl.xtraj_des(i+1,:));
+            new_utraj(i,:) = ctrl.utraj_des(i,:) ...
+                + magic_factor*(new_utraj(i,:) ... 
+                - ctrl.utraj_des(i,:));
         end
         new_utraj(end,:) = (ctrl.K_t{end}*[new_xtraj(end,:)'; 1] ...
             + ctrl.utraj_des(end,:)')';
+        %{
         new_utraj(end,:) = ctrl.utraj_des(end,:) ...
             + magic_factor*(new_utraj(end,:) - ctrl.utraj_des(end,:));
+        %}
 
         %{
         [~, new_xtraj] = ode45(@odefun_rocket, time, new_xtraj(1,:)', odeopts, consts, ctrl);
         for i = 1:ctrl.num_pts
-            new_utraj(i,:) = (ctrl.K_t{i}*[new_xtraj(i,:)'; 1] + ctrl.utraj_des(i,:)')';
+            [~, ustep] = odefun_rocket(time(i), new_xtraj(i,:)', consts, ctrl);
+            new_utraj(i,:) =  ustep;
         end
+        for i = 1:ctrl.num_pts-1
+            %new_utraj(i,:) = (ctrl.K_t{i}*[new_xtraj(i,:)'; 1] + ctrl.utraj_des(i,:)')';
+            t = time(i);
+            [dxdt, ustep] = odefun_rocket(t, new_xtraj(i,:)', consts, ctrl);
+            new_xtraj(i+1,:) = new_xtraj(i,:) + dt*dxdt';
+            new_utraj(i,:) =  ustep';
+        end
+        new_utraj(end,:) = (ctrl.K_t{end}*[new_xtraj(end,:)'; 1] ...
+            + ctrl.utraj_des(end,:)')';
         
         % apply magic factor
         new_utraj = ctrl.utraj_des + magic_factor*(new_utraj - ctrl.utraj_des);
@@ -138,13 +146,25 @@ function ctrl = student_setup(x0, consts)
 
         %plot old, new, and desired trajectories
         figure(100)
-        subplot(211)
-        plot(time, ctrl.xtraj)
+        subplot(411)
+        plot(time, ctrl.xtraj(:,1))
         hold on
-        plot(time, new_xtraj,'--')
-        plot(time, ctrl.xtraj_des,'-.')
+        plot(time, new_xtraj(:,1),'--')
+        plot(time, ctrl.xtraj_des(:,1),'-.')
         hold off
-        subplot(212)
+        subplot(412)
+        plot(time, ctrl.xtraj(:,2))
+        hold on
+        plot(time, new_xtraj(:,2),'--')
+        plot(time, ctrl.xtraj_des(:,2),'-.')
+        hold off
+        subplot(413)
+        plot(time, ctrl.xtraj(:,3:end-1))
+        hold on
+        plot(time, new_xtraj(:,3:end-1),'--')
+        plot(time, ctrl.xtraj_des(:,3:end-1),'-.')
+        hold off
+        subplot(414)
         plot(time, ctrl.utraj)
         hold on
         plot(time, new_utraj,'--')
@@ -161,8 +181,19 @@ function ctrl = student_setup(x0, consts)
             
         ctrl.xtraj = new_xtraj;
         ctrl.utraj = new_utraj;
+        ctrl.utraj_des(:,1) = new_xtraj(:,end)*consts.g/consts.gamma;
     end
+
+%compute infinite time horizon control to use after last timestep
+ctrl.xeq(end,end) = ctrl.xtraj(end,end);
+ctrl.ueq = [ctrl.xeq(end,end)*consts.g/consts.gamma, 0]';
+A = A_cont([ctrl.xeq; ctrl.ueq]);
+B = B_cont([ctrl.xeq; ctrl.ueq]);
+Q = diag([1, 1, 5, 1, 5, 100, 1, 1, 0]);
+R = eye(num_inputs);
+ctrl.K_end = lqr(A, B, Q, R);
 end
+
 
 function [dx u] = odefun_rocket(t, x, consts, ctrl)
     y = x(1) ;

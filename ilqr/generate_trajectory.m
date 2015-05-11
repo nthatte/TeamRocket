@@ -4,7 +4,9 @@ function [time, x_t, u_t] = generate_trajectory(x0, xf, traj_time_scale, dt, con
 
     g = 9.81;
     height = x0(2);
-    T = sqrt(2*height/g)*traj_time_scale
+    T = sqrt(2*height/g)*traj_time_scale;
+    T = round(T/dt)*dt
+
 
     A = [1, 0,   0,     0,      0,      0;
          1, T, T^2,   T^3,    T^4,    T^5;
@@ -16,7 +18,7 @@ function [time, x_t, u_t] = generate_trajectory(x0, xf, traj_time_scale, dt, con
     n = 4;
     initial_pt  = x0(1:n)';
     initial_vel = x0(n+1:2*n)';
-    final_pt  = xf(1:n)';
+    final_pt  = xf(1:n)';;
     final_vel = xf(n+1:2*n)';
 
     end_points = [initial_pt;

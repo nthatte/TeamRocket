@@ -13,14 +13,14 @@ function u = student_controller(t, x, consts, ctrl)
     %u = ctrl.func(x);
     index = floor(t/0.01)+1;
     if index <= ctrl.num_pts - 1000
-        %u = -ctrl.K_t{index}*[x; 1] + ctrl.utraj_des(index,:)';
-        u = -ctrl.K_t{index}*[x; 1] + [x(end)*consts.g/consts.gamma; 0];
+        u = -ctrl.K_t{index}*[x; 1] + ctrl.utraj_des(index,:)';
+        %u = -ctrl.K_t{index}*[x; 1] + [x(end)*consts.g/consts.gamma; 0];
     else
         %u = ctrl.K_t{end}*[x; 1] + ctrl.utraj_des(end,:)';
         %u = [0; 0]; 
         %u = -ctrl.K_t{end}*[x; 1] + ctrl.utraj_des(end,:)';
         %u = -ctrl.K_end*(x-ctrl.xeq) + ctrl.ueq;
         %u = -ctrl.K_t{end}*[x; 1] + [x(end)*consts.g/consts.gamma; 0];
-        u = -ctrl.K_end*(x-ctrl.xeq) + [x(end)*consts.g/consts.gamma; 0];
+        u = -ctrl.K_end*(x) + [x(end)*consts.g/consts.gamma; 0];
     end
 end
