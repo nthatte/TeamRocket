@@ -11,16 +11,15 @@ function u = student_controller(t, x, consts, ctrl)
     u = [0;0];
     dt = ctrl.dt;
     index = floor((t-ctrl.conv_t)/dt)+1;
-    traj_hack = 5;
 
-        if t<ctrl.conv_t
-            
-            u = attitude_control(t, x, consts, ctrl);
-           
-        elseif t >= (max(ctrl.time)-traj_hack)          
-             u = -ctrl.K*(x-ctrl.xeq) + [x(end)*consts.g/consts.gamma; 0];
-        else
-             u =  -ctrl.K*(x-ctrl.xtraj(index,:)') + [x(end)*consts.g/consts.gamma; 0];   
-        end
+    if t<ctrl.conv_t
+        
+        u = attitude_control(t, x, consts, ctrl);
+       
+    elseif t >= (max(ctrl.time))          
+         u = -ctrl.K*(x-ctrl.xeq) + [x(end)*consts.g/consts.gamma; 0];
+    else
+         u =  -ctrl.K*(x-ctrl.xtraj(index,:)') + [x(end)*consts.g/consts.gamma; 0];   
+    end
 
 end

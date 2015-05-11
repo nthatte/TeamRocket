@@ -13,9 +13,9 @@ function u = attitude_control(t, x, consts, ctrl)
 
 
             u(1) = x(end)*consts.g/consts.gamma/cos(x(3)+x(4));
-            u(1) = x(end)*consts.g/consts.gamma*2;
+            u(1) = x(end)*consts.g/consts.gamma/2;
             if abs(x(3))>pi/2 
-                wn1 = ctrl.wn1h;
+                wn1 = ctrl.wn1l;
             else
                 wn1 = ctrl.wn1l;
             end

@@ -17,8 +17,6 @@ function ctrl = student_setup(x0, consts)
         ctrl.conv_t = 5;   
     end
     
-    
-    
     ctrl.wn1h = 1;
     ctrl.wn1l = 0.5;
     ctrl.wn2 = 7;
@@ -67,7 +65,6 @@ function ctrl = student_setup(x0, consts)
     ctrl.xeq(end) = x0(end);
     ctrl.ueq = [x0(end)*consts.g/consts.gamma, 0]';
 
-
     T = 5;
     [time, xtraj, utraj] = generate_trajectory(start_point, ctrl.xeq, T, dt, consts);
     while max(time)>=(60-ctrl.conv_t)
@@ -78,7 +75,18 @@ function ctrl = student_setup(x0, consts)
         T  = T*1.5;
         [time, xtraj, utraj] = generate_trajectory(start_point, ctrl.xeq, T, dt, consts);
     end
-    
+
+    if any(xtraj(:,2) < 0)
+        midpoint = (start_point + ctrl.xeq)/2;
+        midpoint(5:8) = 0;
+        [time1, xtraj1, utraj1] = generate_trajectory(start_point, midpoint, T/2, dt, consts);
+        [time2, xtraj2, utraj2] = generate_trajectory(midpoint, ctrl.xeq, T/2, dt, consts);
+        time = [time1'; time2(2:end)'+time1(end)'];
+        xtraj = [xtraj1; xtraj2(2:end,:)];
+        utraj = [utraj1; utraj2(2:end,:)];
+    end
+   
+        
     ctrl.time = time+ctrl.conv_t;
     ctrl.xtraj = xtraj;
     ctrl.utraj = utraj;
