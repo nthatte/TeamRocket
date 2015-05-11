@@ -27,10 +27,10 @@ x_offset = [50;              % y
             consts.m_nofuel+1*consts.max.m_fuel];             % m
         
 
-x_offset = [ 10 150 0.1 0   0 0 0 0  consts.m_nofuel+1*consts.max.m_fuel]';
-x_offset = [ 100 25 0 0   0 0 0 0  consts.m_nofuel+1*consts.max.m_fuel]';
+% x_offset = [ 10 150 0.1 0   0 0 0 0  consts.m_nofuel+1*consts.max.m_fuel]';
+% x_offset = [ 100 25 0 0   0 0 0 0  consts.m_nofuel+1*consts.max.m_fuel]';
 x_offset = [ 100 500 pi/2 0   0 0 0 0  consts.m_nofuel+1*consts.max.m_fuel]';
-%x_offset = [ 10 1500 179*pi/180 0   0 0 0 0  consts.m_nofuel+1*consts.max.m_fuel]';
+% x_offset = [ 10 1500 179*pi/180 0   0 0 0 0  consts.m_nofuel+1*consts.max.m_fuel]';
 
 % x_offset = [ 60 480 0.2 0   -40 -10 0 0  consts.m_nofuel+1*consts.max.m_fuel]';
 % Run model (ICs close to xeq) (easy)

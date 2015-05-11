@@ -9,14 +9,16 @@ function ctrl = student_setup(x0, consts)
     % attitude control gain
     %it takes 2 second for pi/2 to converge, 10 second for pi to converge(upside down)
        
-    if x0<0.3
-        ctrl.conv_t = 0;
+    if x0(3)<0.3
+        ctrl.conv_t = 0.1;
     elseif x0(3)<pi/1.9
         ctrl.conv_t = 2;
     else
-        ctrl.conv_t = 5;
-        
+        ctrl.conv_t = 5;   
     end
+    
+    
+    
     ctrl.wn1h = 1;
     ctrl.wn1l = 0.5;
     ctrl.wn2 = 7;

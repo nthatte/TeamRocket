@@ -21,6 +21,8 @@ function u = attitude_control(t, x, consts, ctrl)
             end
             wn2 = ctrl.wn2;
             phi_d = (-x(3)*wn1^2 - x(7)*2*wn1)*consts.J/(consts.L*consts.gamma)/u(1);
+            phi_d(phi_d>1) = 1;
+            phi_d(phi_d<-1) = -1; 
             phi_d = asin(-phi_d);
             u(2) = ((-x(4)+phi_d)*wn2^2 - x(8)*2*wn2)*consts.JT;
  

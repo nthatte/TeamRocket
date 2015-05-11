@@ -14,17 +14,8 @@ function u = student_controller(t, x, consts, ctrl)
     traj_hack = 5;
 
         if t<ctrl.conv_t
-            u(1) = x(end)*consts.g/consts.gamma/cos(x(3)+x(4));
-            u(1) = x(end)*consts.g/consts.gamma*2;
-            if abs(x(3))>pi/2 
-                wn1 = ctrl.wn1h;
-            else
-                wn1 = ctrl.wn1l;
-            end
-            wn2 = ctrl.wn2;
-            phi_d = (-x(3)*wn1^2 - x(7)*2*wn1)*consts.J/(consts.L*consts.gamma)/u(1);
-            phi_d = asin(-phi_d);
-            u(2) = ((-x(4)+phi_d)*wn2^2 - x(8)*2*wn2)*consts.JT;
+            
+            u = attitude_control(t, x, consts, ctrl);
            
         elseif t >= (max(ctrl.time)-traj_hack)          
              u = -ctrl.K*(x-ctrl.xeq) + [x(end)*consts.g/consts.gamma; 0];
@@ -32,8 +23,4 @@ function u = student_controller(t, x, consts, ctrl)
              u =  -ctrl.K*(x-ctrl.xtraj(index,:)') + [x(end)*consts.g/consts.gamma; 0];   
         end
 
-
-            
-
-        
 end
