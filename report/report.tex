@@ -1,0 +1,107 @@
+\documentclass{article}
+\usepackage{mathptmx}
+\usepackage{amsmath}
+\usepackage{graphicx}        % standard LaTeX graphics tool
+\usepackage{url}
+\usepackage{hyperref}
+\graphicspath{{./figures/}}
+\usepackage[top=1in, bottom=1in, left=1in, right=1in]{geometry}
+%\pagenumbering{gobble}
+
+\title{18-776/24/776: Rocket Landing Project \\ Group: Team Rocket \quad Score: 423.43}
+\author{Nitish Thatte and Shihyun Laila Lo}
+
+\begin{document}
+\maketitle
+
+\section{Details on our submission:}
+Our submitted controller has two components: The first component is an attitude
+controller that quickly flips the rocket from an initial angled state to a
+roughly vertical position. Once the rocket attitude is regularized, we switch
+to an LQR controller (computed using the dynamics linearized about the goal
+position) to follow a minimum trajectory from the current state to the goal
+state.
+
+\section{Any cool graphics/Equations:}
+\subsection{Attitude Control}
+(Insert equations for attitude controller)
+
+\subsection{Minimum Jerk Trajectories}
+A minimum jerk trajectory can be encoded by a $5^{\textrm{th}}$ order polynomial of the form
+\begin{align}
+    x(t) = a_0 + a_1 t + a_2 t^2 + a_3 t^3 + a_4 t^4 + a_5 t^5
+\end{align}
+The corresponding velocity, acceleration, and jerk of this trajectory are:
+\begin{align}
+     \dot{x}(t) &= a_1 + 2 a_2 t + 3 a_3 t^2 + 4 a_4 t^3 + 5 a_5 t^4 \\
+    \ddot{x}(t) &= 2 a_2 + 6 a_3 t + 12 a_4 t^2 + 20 a_5 t^3
+\end{align}
+If the length of trajectory is T, then we can find the coefficients to meet
+specified initial and final positions, velocities, and accelerations by solving
+the following system of equations:
+\begin{align}
+    \begin{bmatrix} 1 & 0 &   0 &    0 &     0 &     0 \\
+                    1 & T & T^2 &  T^3 &   T^4 &   T^5 \\
+                    0 & 1 &   0 &    0 &     0 &     0 \\
+                    0 & 1 &  2T & 3T^2 &  4T^3 &  5T^4 \\
+                    0 & 0 &   1 &    0 &     0 &     0 \\
+                    0 & 0 &   2 &   6T & 12T^2 & 20T^3 \\
+    \end{bmatrix} 
+    \begin{bmatrix} a_0 \\ a_1 \\ a_2 \\ a_3 \\a_4 \\ a_5 \end{bmatrix} =
+    \begin{bmatrix} x(0) \\ x(T) \\ \dot{x}(0) \\ \dot{x}(T) \\ \ddot{x}(0) \\ \ddot{x}(T) \end{bmatrix}
+\end{align}
+Sometimes the generated trajectories will go through the ground and approach
+the landing pad from below.  We remedied this problem in two ways. The first
+was to check the generated trajectory, and if it passed through the ground,
+split the trajectory into two parts so that at half of the length of the
+trajectory, the rocket has made it half way to the landing pad. The second
+method is to leave the initial and final acceleration constraints unspecified, 
+and instead find the minimum jerk trajectory by solving a quadratic program. In this method
+the minimum jerk objective is encoded as a quadratic cost as follows:
+
+\noindent The jerk of the z-trajectory is:
+\begin{align}
+     z^{(3)}(t) &= \begin{bmatrix} 0 & 0 & 0 & 6 & 24t & 60 t^2 \end{bmatrix} a_z \\
+                &= w(t)^T a_z
+\end{align}
+Where $a_z$ is the vector of polynomial coefficients for the z-trajectory.
+Our quadratic objective is the minimum sum of squared jerks:
+\begin{align}
+    \min_{a_z} & \ \sum \left(z^{(3)}(t)\right)^2\\
+    \min_{a_z} & \ \sum (w(t)^Ta_z)^T(w(t)^Ta_z) \\
+    \min_{a_z} & \  a_z^T \left(\sum w(t)w(t)^T \right) a_z 
+\end{align}
+We minimize this objective subject to the equality constraints given by the desired
+initial and final positions and velocities and inequality constraints of the form:
+\begin{align}
+    z(t) \ge z(t)_{min}
+\end{align}
+Ultimately, we used the first method to generate our trajectory as it
+surprisingly resulted in a higher score.
+
+\section{Other methods we tried on the way:}
+Our motivation for planning trajectories was that it would allow us to
+precisely control the path the rocket takes. Therefore, we could prevent the
+rocket from going through the ground or taking too long to reach the ground. We
+also hoped to use these trajectoies with the iLQR procedure. In this procedure
+the dynamics are linearized around the trajectory instead of the goal, and a
+finite-time-horizon LQR controller is computed to follow the trajectory. The
+system is then forward simulated resulting in a new trajectory. The dynamics
+are then linearized about this new trajectory and the process is repeated. The end
+result is a dynamicly feasable trajectory and a controller to follow it. As we
+had access to the simulator code, we thought this was a promising approach to take.
+Unfortunately, we couldnt achieve good results with this procuedure, either due
+to a bug in the code or the nature of the rocket dynamics/saturations. In the end
+we found regular LQR followed the trajectories well if the rocket attitude was 
+regularized first.
+
+\section{How our method changed after the Initial Conditions were known:}
+\section{What we learned from this project:}
+\section{References we found very useful for this project:}
+\nocite{minjerk}
+\nocite{acrl}
+\bibliographystyle{IEEEtran}
+\bibliography{citations}
+
+\section{Feedback on improving the project next time:}
+\end{document}
